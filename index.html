@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Tareas">
+  <title>To-Do Pro</title>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    
+    body {
+      font-family: -apple-system, "Helvetica Neue", Helvetica, sans-serif;
+      background: #f2f2f7; /* Gris claro estilo iOS */
+      color: #000;
+      padding: 40px 20px;
+      min-height: 100vh;
+    }
+
+    h1 { font-size: 34px; font-weight: 700; letter-spacing: -1px; margin-bottom: 5px; }
+    .subtitle { font-size: 17px; color: #8e8e93; margin-bottom: 25px; text-transform: capitalize; }
+
+    /* Contenedor de entrada */
+    .input-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 25px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .add-row {
+      display: -webkit-flex; display: flex;
+      gap: 10px;
+    }
+
+    input[type=text] {
+      -webkit-flex: 1; flex: 1;
+      padding: 12px; font-size: 17px;
+      border: 1px solid #d1d1d6; border-radius: 8px;
+      background: #f2f2f7; outline: none; -webkit-appearance: none;
+    }
+
+    .add-btn {
+      padding: 0 20px; font-size: 17px; font-weight: 600;
+      background: #007aff; color: #fff;
+      border: none; border-radius: 8px; cursor: pointer;
+      -webkit-appearance: none;
+    }
+
+    /* Filtros estilo Pastilla */
+    .filter-row {
+      display: -webkit-flex; display: flex;
+      gap: 8px; margin-bottom: 20px;
+      overflow-x: auto; padding-bottom: 5px;
+    }
+
+    .filter-btn {
+      font-size: 14px; padding: 8px 16px; border-radius: 15px;
+      border: none; background: #e5e5ea; color: #007aff;
+      font-weight: 600; -webkit-appearance: none; white-space: nowrap;
+    }
+
+    .filter-btn.active { background: #007aff; color: #fff; }
+
+    /* Lista de Tareas */
+    .todo-item {
+      background: #fff; border-radius: 14px;
+      padding: 16px; margin-bottom: 12px;
+      display: -webkit-flex; display: flex;
+      -webkit-align-items: center; align-items: center;
+      gap: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .todo-item.done { opacity: 0.6; }
+
+    /* Checkbox personalizado más grande */
+    .check-btn {
+      width: 28px; height: 28px; border-radius: 50%;
+      border: 2px solid #d1d1d6; position: relative;
+    }
+    .done .check-btn { background: #34c759; border-color: #34c759; }
+    .done .check-btn::after {
+      content: 'L'; display: block; color: #fff;
+      -webkit-transform: scaleX(-1) rotate(-35deg); transform: scaleX(-1) rotate(-35deg);
+      text-align: center; line-height: 24px; font-weight: 900;
+    }
+
+    .todo-text { -webkit-flex: 1; flex: 1; }
+    .todo-label { font-size: 18px; font-weight: 500; }
+    .done .todo-label { text-decoration: line-through; color: #8e8e93; }
+
+    .cat-tag {
+      font-size: 12px; font-weight: 600; color: #007aff;
+      text-transform: uppercase; margin-top: 4px; display: block;
+    }
+
+    .del-btn { color: #ff3b30; font-size: 24px; border: none; background: none; }
+  </style>
+</head>
+<body>
+  <h1>Tareas</h1>
+  <p class="subtitle" id="dateout"></p>
+
+  <div class="input-card">
+    <div class="add-row">
+      <input type="text" id="new-task" placeholder="Nueva tarea...">
+      <button class="add-btn" id="add-btn">Añadir</button>
+    </div>
+  </div>
+
+  <div class="filter-row">
+    <button class="filter-btn active" data-f="all">Todas</button>
+    <button class="filter-btn" data-f="active">Pendientes</button>
+    <button class="filter-btn" data-f="done">Hechas</button>
+  </div>
+
+  <ul id="todo-list"></ul>
+
+  <script>
+    /* Mantengo tu lógica original porque es sólida y compatible */
+    var STORE_KEY = 'ipad_todos_v1';
+    var todos = [];
+    var filter = 'all';
+
+    // Fecha en español para el iPad
+    var days = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+    var months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    var now = new Date();
+    document.getElementById('dateout').textContent = days[now.getDay()] + ', ' + now.getDate() + ' ' + months[now.getMonth()];
+
+    function load() {
+      var raw = localStorage.getItem(STORE_KEY);
+      todos = raw ? JSON.parse(raw) : [];
+    }
+
+    function save() {
+      localStorage.setItem(STORE_KEY, JSON.stringify(todos));
+    }
+
+    function render() {
+      var list = document.getElementById('todo-list');
+      var visible = todos.filter(function(t) {
+        if (filter === 'active') return !t.done;
+        if (filter === 'done') return t.done;
+        return true;
+      });
+
+      var html = '';
+      for (var i = 0; i < visible.length; i++) {
+        var t = visible[i];
+        html += '<li class="todo-item ' + (t.done ? 'done' : '') + '">' +
+          '<div class="check-btn" onclick="toggleDone(\''+t.id+'\')"></div>' +
+          '<div class="todo-text">' +
+            '<div class="todo-label">' + t.text + '</div>' +
+            '<span class="cat-tag">Personal</span>' +
+          '</div>' +
+          '<button class="del-btn" onclick="deleteTask(\''+t.id+'\')">&times;</button>' +
+        '</li>';
+      }
+      list.innerHTML = html || '<p style="text-align:center;color:#8e8e93;margin-top:20px;">No hay tareas</p>';
+    }
+
+    function toggleDone(id) {
+      for(var i=0; i<todos.length; i++) {
+        if(todos[i].id === id) todos[i].done = !todos[i].done;
+      }
+      save(); render();
+    }
+
+    function deleteTask(id) {
+      todos = todos.filter(function(t){ return t.id !== id; });
+      save(); render();
+    }
+
+    document.getElementById('add-btn').onclick = function() {
+      var inp = document.getElementById('new-task');
+      if(!inp.value.trim()) return;
+      todos.unshift({ id: ''+Date.now(), text: inp.value, done: false });
+      inp.value = '';
+      save(); render();
+    };
+
+    // Filtros
+    var btns = document.querySelectorAll('.filter-btn');
+    btns.forEach(function(btn) {
+      btn.onclick = function(e) {
+        filter = e.target.getAttribute('data-f');
+        btns.forEach(function(b){ b.classList.remove('active'); });
+        e.target.classList.add('active');
+        render();
+      }
+    });
+
+    load(); render();
+  </script>
+</body>
+</html>
