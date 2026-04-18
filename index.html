@@ -14,16 +14,16 @@
     
     body {
       font-family: -apple-system, "Helvetica Neue", Helvetica, sans-serif;
-      background: #f2f2f7; /* Gris claro estilo iOS */
+      background: #f2f2f7; /* Color de fondo gris claro oficial de iOS */
       color: #000;
       padding: 40px 20px;
       min-height: 100vh;
     }
 
     h1 { font-size: 34px; font-weight: 700; letter-spacing: -1px; margin-bottom: 5px; }
-    .subtitle { font-size: 17px; color: #8e8e93; margin-bottom: 25px; text-transform: capitalize; }
+    .subtitle { font-size: 17px; color: #8e8e93; margin-bottom: 25px; }
 
-    /* Contenedor de entrada */
+    /* Contenedor de entrada de tareas */
     .input-card {
       background: #fff;
       border-radius: 12px;
@@ -51,11 +51,11 @@
       -webkit-appearance: none;
     }
 
-    /* Filtros estilo Pastilla */
+    /* Filtros estilo Pastilla (Tabs) */
     .filter-row {
       display: -webkit-flex; display: flex;
       gap: 8px; margin-bottom: 20px;
-      overflow-x: auto; padding-bottom: 5px;
+      overflow-x: auto;
     }
 
     .filter-btn {
@@ -67,6 +67,8 @@
     .filter-btn.active { background: #007aff; color: #fff; }
 
     /* Lista de Tareas */
+    .todo-list { list-style: none; }
+    
     .todo-item {
       background: #fff; border-radius: 14px;
       padding: 16px; margin-bottom: 12px;
@@ -77,17 +79,12 @@
 
     .todo-item.done { opacity: 0.6; }
 
-    /* Checkbox personalizado más grande */
+    /* Checkbox personalizado circular */
     .check-btn {
       width: 28px; height: 28px; border-radius: 50%;
-      border: 2px solid #d1d1d6; position: relative;
+      border: 2px solid #d1d1d6; background: #fff;
     }
     .done .check-btn { background: #34c759; border-color: #34c759; }
-    .done .check-btn::after {
-      content: 'L'; display: block; color: #fff;
-      -webkit-transform: scaleX(-1) rotate(-35deg); transform: scaleX(-1) rotate(-35deg);
-      text-align: center; line-height: 24px; font-weight: 900;
-    }
 
     .todo-text { -webkit-flex: 1; flex: 1; }
     .todo-label { font-size: 18px; font-weight: 500; }
@@ -98,7 +95,7 @@
       text-transform: uppercase; margin-top: 4px; display: block;
     }
 
-    .del-btn { color: #ff3b30; font-size: 24px; border: none; background: none; }
+    .del-btn { color: #ff3b30; font-size: 24px; border: none; background: none; -webkit-appearance: none; }
   </style>
 </head>
 <body>
@@ -118,17 +115,16 @@
     <button class="filter-btn" data-f="done">Hechas</button>
   </div>
 
-  <ul id="todo-list"></ul>
+  <ul id="todo-list" class="todo-list"></ul>
 
   <script>
-    /* Mantengo tu lógica original porque es sólida y compatible */
     var STORE_KEY = 'ipad_todos_v1';
     var todos = [];
     var filter = 'all';
 
-    // Fecha en español para el iPad
+    // Configuración de fecha
     var days = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-    var months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    var months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dic'];
     var now = new Date();
     document.getElementById('dateout').textContent = days[now.getDay()] + ', ' + now.getDate() + ' ' + months[now.getMonth()];
 
@@ -143,25 +139,29 @@
 
     function render() {
       var list = document.getElementById('todo-list');
-      var visible = todos.filter(function(t) {
-        if (filter === 'active') return !t.done;
-        if (filter === 'done') return t.done;
-        return true;
-      });
+      var visible = [];
+      
+      // Bucle tradicional para filtrar (máxima compatibilidad iOS 9)
+      for (var i = 0; i < todos.length; i++) {
+        var t = todos[i];
+        if (filter === 'all') visible.push(t);
+        else if (filter === 'active' && !t.done) visible.push(t);
+        else if (filter === 'done' && t.done) visible.push(t);
+      }
 
       var html = '';
-      for (var i = 0; i < visible.length; i++) {
-        var t = visible[i];
-        html += '<li class="todo-item ' + (t.done ? 'done' : '') + '">' +
-          '<div class="check-btn" onclick="toggleDone(\''+t.id+'\')"></div>' +
+      for (var j = 0; j < visible.length; j++) {
+        var item = visible[j];
+        html += '<li class="todo-item ' + (item.done ? 'done' : '') + '">' +
+          '<div class="check-btn" onclick="toggleDone(\''+item.id+'\')"></div>' +
           '<div class="todo-text">' +
-            '<div class="todo-label">' + t.text + '</div>' +
+            '<div class="todo-label">' + item.text + '</div>' +
             '<span class="cat-tag">Personal</span>' +
           '</div>' +
-          '<button class="del-btn" onclick="deleteTask(\''+t.id+'\')">&times;</button>' +
+          '<button class="del-btn" onclick="deleteTask(\''+item.id+'\')">&times;</button>' +
         '</li>';
       }
-      list.innerHTML = html || '<p style="text-align:center;color:#8e8e93;margin-top:20px;">No hay tareas</p>';
+      list.innerHTML = html || '<p style="text-align:center;color:#8e8e93;margin-top:20px;">Sin tareas</p>';
     }
 
     function toggleDone(id) {
@@ -172,7 +172,11 @@
     }
 
     function deleteTask(id) {
-      todos = todos.filter(function(t){ return t.id !== id; });
+      var nextTodos = [];
+      for(var i=0; i<todos.length; i++) {
+        if(todos[i].id !== id) nextTodos.push(todos[i]);
+      }
+      todos = nextTodos;
       save(); render();
     }
 
@@ -184,18 +188,21 @@
       save(); render();
     };
 
-    // Filtros
-    var btns = document.querySelectorAll('.filter-btn');
-    btns.forEach(function(btn) {
-      btn.onclick = function(e) {
-        filter = e.target.getAttribute('data-f');
-        btns.forEach(function(b){ b.classList.remove('active'); });
-        e.target.classList.add('active');
+    // Lógica de Filtros corregida para iPad Mini 1
+    var fbtns = document.querySelectorAll('.filter-btn');
+    for (var k = 0; k < fbtns.length; k++) {
+      fbtns[k].onclick = function() {
+        filter = this.getAttribute('data-f');
+        for (var m = 0; m < fbtns.length; m++) {
+          fbtns[m].className = 'filter-btn';
+        }
+        this.className = 'filter-btn active';
         render();
-      }
-    });
+      };
+    }
 
-    load(); render();
+    load(); 
+    render();
   </script>
 </body>
 </html>
